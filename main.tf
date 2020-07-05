@@ -16,7 +16,7 @@ resource "aws_lambda_function" "ebs_volumes_cleanup" {
 
   environment {
     variables = {
-      DAYS = 7
+      DAYS = var.days
     }
   }
 }
