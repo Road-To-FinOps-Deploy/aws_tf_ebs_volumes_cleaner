@@ -1,4 +1,4 @@
-# Lambda Scheduler
+# Lambda Preventer
 ```
 The script schedules the review of any ebs volumes that have been unattached for X days (deafult 7). 
 This reviews all regions in your account
