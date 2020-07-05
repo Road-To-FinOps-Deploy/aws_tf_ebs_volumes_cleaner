@@ -3,4 +3,6 @@ variable "ebs_volumes_cleanup_cron" {
   default     = "cron(0 6 ? * MON *)"
 }
 
-variable "name" {}
+variable "name" {
+}
+
