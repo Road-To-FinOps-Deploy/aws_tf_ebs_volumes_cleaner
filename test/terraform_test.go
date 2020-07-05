@@ -4,7 +4,7 @@ import (
 	//"fmt"
 	"testing"
 
-	"github.com/gruntwork-io/terratest/modules/aws"
+	// "github.com/gruntwork-io/terratest/modules/aws"
 	// "github.com/gruntwork-io/terratest/modules/random"
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	//"github.com/stretchr/testify/assert"
@@ -20,7 +20,7 @@ func TestTerraformAwsExample(t *testing.T) {
 	// functionName := "scheduler_ec2_start" //, random.UniqueId()
 
 	// Pick a random AWS region to test in. This helps ensure your code works in all regions.
-	awsRegion := aws.GetRandomStableRegion(t, nil, nil)
+	// awsRegion := aws.GetRandomStableRegion(t, nil, nil)
 
 	// website::tag::1::Configure Terraform setting path to Terraform code, EC2 instance name, and AWS Region.
 	terraformOptions := &terraform.Options{
@@ -30,7 +30,7 @@ func TestTerraformAwsExample(t *testing.T) {
 		// Variables to pass to our Terraform code using -var options
 		
 		Vars: map[string]interface{}{
-			"aws_region": awsRegion,
+			"function_prefix": "test",
 		},
 		/*
 		// Environment variables to set when running Terraform
