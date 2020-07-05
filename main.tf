@@ -6,7 +6,7 @@ data "archive_file" "ebs_volumes_zip" {
 
 resource "aws_lambda_function" "ebs_volumes_cleanup" {
   filename         = "${path.module}/source/ebs_volumes.zip"
-  function_name    = "ebs_volumes_cleanup_${var.name}"
+  function_name    = "${var.function_prefix}ebs_volumes_cleanup"
   role             = aws_iam_role.iam_role_for_ebs_cleanup.arn
   handler          = "ebs_volumes.lambda_handler"
   source_code_hash = data.archive_file.ebs_volumes_zip.output_base64sha256
