@@ -8,6 +8,6 @@ variable "function_prefix" {
 }
 
 
-variable "days"{
+variable "days" {
   default = "7"
 }
