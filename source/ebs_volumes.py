@@ -3,12 +3,11 @@ Reports and deletes EBS volumes that are not in use
 and have been idle for more than the specified time
 """
 import csv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import logging
 import os
 import sys
-
-
+import botocore
 import boto3
 
 REGION = os.getenv("AWS_DEFAULT_REGION")  # should this be changed to iterate through regions or manually input in sandbox for
@@ -17,7 +16,10 @@ HANDLER.setLevel(logging.INFO)
 LOGGER = logging.getLogger("volume_sweeper")
 LOGGER.addHandler(HANDLER)
 LOGGER.setLevel(logging.INFO)
-
+today = date.today()
+date_time = today.strftime("%m/%d/%Y")
+datelimit = datetime.today() - timedelta(days=7)
+DR = False
 
 def get_idle_time(volume_id, filter_date, region):
     """
@@ -60,6 +62,7 @@ def get_available_volumes(filter_date, region):
     """
     ec2 = boto3.resource("ec2", region_name=region)
     volumes = ec2.volumes.filter(Filters=[{"Name": "status", "Values": ["available"]}])
+
     available_volumes = [
         vol for vol in volumes if vol.create_time.replace(tzinfo=None) < filter_date
     ]
@@ -117,17 +120,49 @@ def write_file(volumes, filename, region):
                 ]
             )
 
-
 def delete_volumes(volumes):
+    
     for volume in volumes:
-        volume.delete()
-        print(f"Deleted {volume.id}")
+        Protection = True
+        ReviewDate = False
 
+        if volume.tags != None:
+            if any(t.get('Key') == 'Protection' for t in volume.tags):
+                print(f"{volume.id} has been protected")
+                continue
+            if any(t.get('Key') == 'DateReviewed' for t in volume.tags):
+                print(f"{volume.id} has DateReviewed")
+                ReviewDate = True
+                for t in volume.tags:      
+                    if  t.get('Key') == 'DateReviewed' and t.get('Value') < datelimit.strftime("%m/%d/%Y"):
+                        print(f"{volume.id} has DateReviewed < 7")
+                        Protection = False
 
-def snapshot_volumes(volumes):
+           
+        if ReviewDate == False:
+            volume.create_tags(
+            DryRun=DR,
+            Tags=[
+                    {
+                        'Key': 'DateReviewed',
+                        'Value': date_time
+                    },
+                ]
+            )
+        
+            print(f"{volume.id} has been tag")
+            
+            
+        if Protection == False:
+            snapshot_volumes(volume)
+            volume.delete( DryRun=DR)
+            print(f"Deleted {volume.id}")
+
+def snapshot_volumes(volume):
     now = datetime.utcnow()
     client = boto3.client('ec2')
-    for volume in volumes:
+    #for volume in volumes:
+    try:
         create_snapshot_response = client.create_snapshot(
             VolumeId=volume.id,
             TagSpecifications=[
@@ -141,11 +176,12 @@ def snapshot_volumes(volumes):
                     ]
                 },
             ],
-            DryRun=False
+            DryRun=DR
         )
         LOGGER.info(
         f" Took a snapshot of {volume.id}")
-
+    except botocore.exceptions.ClientError as e:
+        LOGGER.info(e)
 
 def main():
 
@@ -160,19 +196,11 @@ def main():
         )
         filter_date = get_filter_date(int(os.environ['DAYS']))
         volumes = get_idle_volumes(os.environ['DAYS'], filter_date, region)
-        # if args.delete:
         delete_volumes(volumes)
-    # if args.snapshot:
-    #     snapshot_volumes(volumes)
-    # if not args.outfile:
-    #     print("Region, Volume ID, Create Time, Tags, Info")
-    #     for volume in volumes:
-    #         print(
-    #             f"{region}, {volume.id}, {volume.create_time.date().isoformat()}, {volume.tags}, {info} "
-    #         )
-    # else:
-    #     write_file(volumes, args.outfile, region)
+
 
 
 def lambda_handler(event, context):
     main()
+
+#lambda_handler(None, None)

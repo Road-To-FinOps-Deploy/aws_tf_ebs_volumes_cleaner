@@ -21,7 +21,11 @@ module "aws_tf_ebs_volumes_cleaner" {
 | function\_prefix | Prefix for the name of the lambda created | string | `""` | no |
 | dats| how many days a volumes needs to be unattached to delete| string | `"7"` | no |
 
+## Tags
+If you do not want it to be deleted then Tag
+Protection = True
 
+It will run and tag volumes that need to be reviewed and will delete in a week
 ## Testing 
 
 Configure your AWS credentials using one of the [supported methods for AWS CLI
