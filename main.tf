@@ -17,6 +17,7 @@ resource "aws_lambda_function" "ebs_volumes_cleanup" {
   environment {
     variables = {
       DAYS = var.days
+      DRYRUN = var.dryrun
     }
   }
 }

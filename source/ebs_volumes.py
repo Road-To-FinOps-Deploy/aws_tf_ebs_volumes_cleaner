@@ -19,7 +19,11 @@ LOGGER.setLevel(logging.INFO)
 today = date.today()
 date_time = today.strftime("%m/%d/%Y")
 datelimit = datetime.today() - timedelta(days=7)
-DR = False
+
+if os.environ['DRYRUN'] == 'True':
+    DR = True
+else: DR = False
+
 
 def get_idle_time(volume_id, filter_date, region):
     """

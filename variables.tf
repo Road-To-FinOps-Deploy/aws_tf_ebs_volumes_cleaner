@@ -11,3 +11,7 @@ variable "function_prefix" {
 variable "days" {
   default = "7"
 }
+
+variable "dryrun" {
+  default = "False"
+}
