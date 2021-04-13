@@ -19,10 +19,7 @@ LOGGER.setLevel(logging.INFO)
 today = date.today()
 date_time = today.strftime("%m/%d/%Y")
 datelimit = datetime.today() - timedelta(days=7)
-
-if os.environ['DRYRUN'] == 'True':
-    DR = True
-else: DR = False
+DR = False
 
 
 def get_idle_time(volume_id, filter_date, region):
@@ -100,7 +97,7 @@ def get_region(region):
     return REGION
 
 
-def write_file(volumes, filename, region):
+def write_file(volumes, filename, region, DR):
     """
     Write results of search to a file in CSV format
     """
@@ -124,44 +121,45 @@ def write_file(volumes, filename, region):
                 ]
             )
 
-def delete_volumes(volumes):
+def delete_volumes(volumes, dry_run_value):
     
     for volume in volumes:
         Protection = True
         ReviewDate = False
+        if dry_run_value == 'False':
+            if volume.tags != None:
+                if any(t.get('Key') == 'Protection' for t in volume.tags):
+                    print(f"{volume.id} has been protected")
+                    continue
+                if any(t.get('Key') == 'DateReviewed' for t in volume.tags):
+                    print(f"{volume.id} has DateReviewed")
+                    ReviewDate = True
+                    for t in volume.tags:      
+                        if  t.get('Key') == 'DateReviewed' and t.get('Value') < datelimit.strftime("%m/%d/%Y"):
+                            print(f"{volume.id} has DateReviewed < 7")
+                            Protection = False
 
-        if volume.tags != None:
-            if any(t.get('Key') == 'Protection' for t in volume.tags):
-                print(f"{volume.id} has been protected")
-                continue
-            if any(t.get('Key') == 'DateReviewed' for t in volume.tags):
-                print(f"{volume.id} has DateReviewed")
-                ReviewDate = True
-                for t in volume.tags:      
-                    if  t.get('Key') == 'DateReviewed' and t.get('Value') < datelimit.strftime("%m/%d/%Y"):
-                        print(f"{volume.id} has DateReviewed < 7")
-                        Protection = False
-
-           
-        if ReviewDate == False:
-            volume.create_tags(
-            DryRun=DR,
-            Tags=[
-                    {
-                        'Key': 'DateReviewed',
-                        'Value': date_time
-                    },
-                ]
-            )
-        
-            print(f"{volume.id} has been tag")
             
+            if ReviewDate == False:
+                volume.create_tags(
+                DryRun=DR,
+                Tags=[
+                        {
+                            'Key': 'DateReviewed',
+                            'Value': date_time
+                        },
+                    ]
+                )
             
-        if Protection == False:
-            snapshot_volumes(volume)
-            volume.delete( DryRun=DR)
-            print(f"Deleted {volume.id}")
-
+                print(f"{volume.id} has been tag")
+                
+                
+            if Protection == False:
+                snapshot_volumes(volume)
+                volume.delete( DryRun=DR)
+                print(f"Deleted {volume.id}")
+        else:
+            print(f"{volume.id} would have been reviewed for deletion")
 def snapshot_volumes(volume):
     now = datetime.utcnow()
     client = boto3.client('ec2')
@@ -189,8 +187,6 @@ def snapshot_volumes(volume):
 
 def main():
 
-    # regions = os.environ['REGIONS'].split(",")  # get_region(args.region)
-    info = "Waste"
     ec2 = boto3.client('ec2')
     response = ec2.describe_regions().get('Regions')
     regions = [item.get('RegionName') for item in response]
@@ -200,7 +196,10 @@ def main():
         )
         filter_date = get_filter_date(int(os.environ['DAYS']))
         volumes = get_idle_volumes(os.environ['DAYS'], filter_date, region)
-        delete_volumes(volumes)
+        
+        dry_run_value = os.environ['DRYRUN'] 
+        delete_volumes(volumes, dry_run_value)
+        
 
 
 
