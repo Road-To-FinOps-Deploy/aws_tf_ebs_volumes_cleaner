@@ -13,6 +13,7 @@ resource "aws_lambda_function" "ebs_volumes_cleanup" {
   runtime          = "python3.6"
   memory_size      = "512"
   timeout          = "150"
+  #architectures    =  ["arm64"]
 
   environment {
     variables = {
