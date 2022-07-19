@@ -6,13 +6,11 @@ from datetime import datetime, timedelta, date
 import logging
 import os
 import sys
-from turtle import pd
 import botocore
 import boto3
 import json
 from botocore.client import Config
 
-REGION = os.getenv("AWS_DEFAULT_REGION")  # should this be changed to iterate through regions or manually input in sandbox for
 HANDLER = logging.StreamHandler(sys.stdout)
 HANDLER.setLevel(logging.INFO)
 LOGGER = logging.getLogger("volume_sweeper")
@@ -21,7 +19,6 @@ LOGGER.setLevel(logging.INFO)
 today = date.today()
 date_time = today.strftime("%m/%d/%Y")
 datelimit = datetime.today() - timedelta(days=1)
-#DR = False
 
 # subclass JSONEncoder
 class DateTimeEncoder(json.JSONEncoder):
@@ -127,7 +124,7 @@ def delete_volumes(volumes, DR, region):
                     ReviewDate = True
                     for t in volume.tags:      
                         if  t.get('Key') == 'DateReviewed' and t.get('Value') < datelimit.strftime("%m/%d/%Y"):
-                            print(f"{volume.id} has DateReviewed < 1")
+                            print(f"{volume.id} has DateReviewed < {os.environ['DAYS']}")
                             Protection = False # change to false so can be removed 
 
             #If its not been reviewed before then tag todays date
@@ -207,5 +204,3 @@ def lambda_handler(event, context):
         delete_volumes(volumes, DR, region)
         if os.environ['BUCKET_NAME'] != '':
             s3_upload(region)
-
-lambda_handler(None, None)

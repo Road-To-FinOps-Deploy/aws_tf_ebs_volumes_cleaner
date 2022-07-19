@@ -15,3 +15,7 @@ variable "days" {
 variable "dryrun" {
   default = "False"
 }
+
+variable "bucket_name" {
+  default = ""
+}

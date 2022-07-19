@@ -10,7 +10,7 @@ resource "aws_lambda_function" "ebs_volumes_cleanup" {
   role             = aws_iam_role.iam_role_for_ebs_cleanup.arn
   handler          = "ebs_volumes.lambda_handler"
   source_code_hash = data.archive_file.ebs_volumes_zip.output_base64sha256
-  runtime          = "python3.6"
+  runtime          = "python3.8"
   memory_size      = "512"
   timeout          = "150"
   #architectures    =  ["arm64"]
@@ -19,6 +19,7 @@ resource "aws_lambda_function" "ebs_volumes_cleanup" {
     variables = {
       DAYS = var.days
       DRYRUN = var.dryrun
+      BUCKET_NAME = var.bucket_name
     }
   }
 }

@@ -19,9 +19,9 @@ module "aws_tf_ebs_volumes_cleaner" {
 |------|-------------|:----:|:-----:|:-----:|
 | ebs\_volumes\_cleanup\_cron | Rate expression for when to run the review of volumes| string | `"cron(0 7 ? * MON-FRI *)"` | no 
 | function\_prefix | Prefix for the name of the lambda created | string | `""` | no |
-| dats| how many days a volumes needs to be unattached to delete| string | `"7"` | no |
+| days| how many days a volumes needs to be unattached to delete| string | `"7"` | no |
 | dryrun| If this is a dry run or a real test. By default it will not be a dry run so will action| string | `"False"` | no |
-
+| bucket\_name| Add name of bucket if you wish to upload json file to s3 bucket| string | `""` | no |
 
 ## Tags
 If you do not want it to be deleted then Tag
