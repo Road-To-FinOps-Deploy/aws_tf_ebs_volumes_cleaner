@@ -89,36 +89,35 @@ def get_filter_date(number_of_days):
     return today - timedelta(days=number_of_days)
 
 
-# def write_file(volumes, filename, region, DR):
-#     """
-#     Write results of search to a file in CSV format
-#     """
-#     with open(filename, "w") as csvfile:
-#         writer = csv.writer(csvfile, delimiter=",")
-#         writer.writerow(["region", "volume ID", "State", "Creation time", "Tags"])
-#         for volume in volumes:
-#             if volume.tags:
-#                 tags = [
-#                     f"{tag['Key']}:{tag['Value']}" for tag in volume.tags if volume.tags
-#                 ]
-#             else:
-#                 tags = []
-#             writer.writerow(
-#                 [
-#                     region,
-#                     volume.id,
-#                     volume.state,
-#                     volume.create_time.date().isoformat(),
-#                     " ".join(tags), "test"
-#                 ]
-#             )
+def write_file(volumes, region, DR, Protection):
+    """
+    Write results of search to a file in CSV format
+    """
+    with open('results.csv', "w") as csvfile:
+        writer = csv.writer(csvfile, delimiter=",")
+        writer.writerow(["region", "volume ID", "State", "Creation time", "Tags", "DR", Protection])
+        for volume in volumes:
+            if volume.tags:
+                tags = [
+                    f"{tag['Key']}:{tag['Value']}" for tag in volume.tags if volume.tags
+                ]
+            else:
+                tags = []
+            writer.writerow(
+                [
+                    region,
+                    volume.id,
+                    volume.state,
+                    volume.create_time.date().isoformat(),
+                    " ".join(tags), DR, Protection
+                ]
+            )
 
 def delete_volumes(volumes, dry_run_value, region):
     
     for volume in volumes:
         Protection = True #always start as everything is protected unless found otherwise
         ReviewDate = False
-        #if dry_run_value == 'False':
         if volume.tags != None:
             #If this volume has been protected then ignore and make a note
             if any(t.get('Key') == 'Protection' for t in volume.tags):
@@ -155,8 +154,6 @@ def delete_volumes(volumes, dry_run_value, region):
                 print(f"Deleted {volume.id}, DryRun ={DR}")
             except botocore.exceptions.ClientError as e:
                 LOGGER.info(e)
-        #else:
-        #    print(f"{volume.id} would have been reviewed for deletion")
 
 def snapshot_volumes(volume, DR, region):
     now = datetime.utcnow()
@@ -197,3 +194,5 @@ def lambda_handler(event, context):
         
         dry_run_value = os.environ['DRYRUN'] 
         delete_volumes(volumes, dry_run_value, region)
+
+lambda_handler(None, None)
