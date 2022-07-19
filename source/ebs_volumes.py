@@ -10,6 +10,7 @@ from turtle import pd
 import botocore
 import boto3
 import json
+from botocore.client import Config
 
 REGION = os.getenv("AWS_DEFAULT_REGION")  # should this be changed to iterate through regions or manually input in sandbox for
 HANDLER = logging.StreamHandler(sys.stdout)
@@ -28,6 +29,19 @@ class DateTimeEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, (datetime.date, datetime.datetime)):
             return obj.isoformat()
+
+
+def s3_upload(region):
+    try:
+        S3BucketName = os.environ["BUCKET_NAME"]
+        s3 = boto3.client('s3', 
+                            config=Config(s3={'addressing_style': 'path'}))
+        s3.upload_file(f'/tmp/data-{region}.json', S3BucketName, f"ebs/data-{region}.json")
+        print(f"Data in s3 {S3BucketName}")
+    except Exception as e:
+        # Send some context about this error to Lambda Logs
+        logging.warning("%s" % e)
+
 
 def get_idle_time(volume_id, filter_date, region):
     """
@@ -191,5 +205,7 @@ def lambda_handler(event, context):
         elif DR == 'False':
             DR = False
         delete_volumes(volumes, DR, region)
+        if os.environ['BUCKET_NAME'] != '':
+            s3_upload(region)
 
 lambda_handler(None, None)
