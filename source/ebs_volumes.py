@@ -2,13 +2,14 @@
 Reports and deletes EBS volumes that are not in use
 and have been idle for more than the specified time
 """
-import csv
 from datetime import datetime, timedelta, date
 import logging
 import os
 import sys
+from turtle import pd
 import botocore
 import boto3
+import json
 
 REGION = os.getenv("AWS_DEFAULT_REGION")  # should this be changed to iterate through regions or manually input in sandbox for
 HANDLER = logging.StreamHandler(sys.stdout)
@@ -19,8 +20,14 @@ LOGGER.setLevel(logging.INFO)
 today = date.today()
 date_time = today.strftime("%m/%d/%Y")
 datelimit = datetime.today() - timedelta(days=1)
-DR = False
+#DR = False
 
+# subclass JSONEncoder
+class DateTimeEncoder(json.JSONEncoder):
+    # Override the default method
+    def default(self, obj):
+        if isinstance(obj, (datetime.date, datetime.datetime)):
+            return obj.isoformat()
 
 def get_idle_time(volume_id, filter_date, region):
     """
@@ -89,71 +96,57 @@ def get_filter_date(number_of_days):
     return today - timedelta(days=number_of_days)
 
 
-def write_file(volumes, region, DR, Protection):
-    """
-    Write results of search to a file in CSV format
-    """
-    with open('results.csv', "w") as csvfile:
-        writer = csv.writer(csvfile, delimiter=",")
-        writer.writerow(["region", "volume ID", "State", "Creation time", "Tags", "DR", Protection])
+def delete_volumes(volumes, DR, region):
+    volume_data = {}
+    with open("/tmp/data-{region}.json", "w") as f:
         for volume in volumes:
-            if volume.tags:
-                tags = [
-                    f"{tag['Key']}:{tag['Value']}" for tag in volume.tags if volume.tags
-                ]
-            else:
-                tags = []
-            writer.writerow(
-                [
-                    region,
-                    volume.id,
-                    volume.state,
-                    volume.create_time.date().isoformat(),
-                    " ".join(tags), DR, Protection
-                ]
-            )
+            Protection = True #always start as everything is protected unless found otherwise
+            ReviewDate = False
+            if volume.tags != None:
+                #If this volume has been protected then ignore and make a note
+                if any(t.get('Key') == 'Protection' for t in volume.tags):
+                    print(f"{volume.id} has been protected")
+                    continue
+                #If it has tag DateReviewed then this lambda has seen it before and can use this as a check point and can now be marked as delete ready
+                if any(t.get('Key') == 'DateReviewed' for t in volume.tags):
+                    print(f"{volume.id} has DateReviewed")
+                    ReviewDate = True
+                    for t in volume.tags:      
+                        if  t.get('Key') == 'DateReviewed' and t.get('Value') < datelimit.strftime("%m/%d/%Y"):
+                            print(f"{volume.id} has DateReviewed < 1")
+                            Protection = False # change to false so can be removed 
 
-def delete_volumes(volumes, dry_run_value, region):
-    
-    for volume in volumes:
-        Protection = True #always start as everything is protected unless found otherwise
-        ReviewDate = False
-        if volume.tags != None:
-            #If this volume has been protected then ignore and make a note
-            if any(t.get('Key') == 'Protection' for t in volume.tags):
-                print(f"{volume.id} has been protected")
-                continue
-            #If it has tag DateReviewed then this lambda has seen it before and can use this as a check point and can now be marked as delete ready
-            if any(t.get('Key') == 'DateReviewed' for t in volume.tags):
-                print(f"{volume.id} has DateReviewed")
-                ReviewDate = True
-                for t in volume.tags:      
-                    if  t.get('Key') == 'DateReviewed' and t.get('Value') < datelimit.strftime("%m/%d/%Y"):
-                        print(f"{volume.id} has DateReviewed < 1")
-                        Protection = False # change to false so can be removed 
-
-        #If its not been reviewed before then tag todays date
-        if ReviewDate == False:
-            volume.create_tags(
-            DryRun=DR,
-            Tags=[
-                    {
-                        'Key': 'DateReviewed',
-                        'Value': date_time
-                    },
-                ]
-            )
-        
-            print(f"{volume.id} has been tag, DryRun ={DR} ")
-            
-        # If the status has changed then we remove but we have set Dry Run as am option    
-        if Protection == False:
-            try: 
-                snapshot_volumes(volume, DR, region)
-                volume.delete(DryRun=DR)
-                print(f"Deleted {volume.id}, DryRun ={DR}")
+            #If its not been reviewed before then tag todays date
+            try:
+                if ReviewDate == False:
+                    volume.create_tags(
+                    DryRun=DR,
+                    Tags=[
+                            {
+                                'Key': 'DateReviewed',
+                                'Value': date_time
+                            },
+                        ]
+                    )
+                
+                    print(f"{volume.id} has been tag, DryRun ={DR} ")
             except botocore.exceptions.ClientError as e:
-                LOGGER.info(e)
+                    LOGGER.info(e)
+ 
+            # If the status has changed then we remove but we have set Dry Run as am option    
+            if Protection == False:
+                try: 
+                    snapshot_volumes(volume, DR, region)
+                    volume.delete(DryRun=DR)
+                    print(f"Deleted {volume.id}, DryRun ={DR}")
+                    
+                    volume_data.update({'Region':region, 'ID':volume.id,'State': volume.state, 'Creation Date': volume.create_time.date().isoformat(),'DR':DR, 'Protection':Protection, 'ReviewDate':ReviewDate})
+                    dataJSONData = json.dumps(volume, cls=DateTimeEncoder)
+                    f.write(dataJSONData)
+                    f.write("\n")
+
+                except botocore.exceptions.ClientError as e:
+                    LOGGER.info(e)
 
 def snapshot_volumes(volume, DR, region):
     now = datetime.utcnow()
@@ -192,7 +185,11 @@ def lambda_handler(event, context):
         filter_date = get_filter_date(int(os.environ['DAYS']))
         volumes = get_idle_volumes(os.environ['DAYS'], filter_date, region)
         
-        dry_run_value = os.environ['DRYRUN'] 
-        delete_volumes(volumes, dry_run_value, region)
+        DR = os.environ['DRYRUN'] 
+        if DR == 'True':
+            DR = True
+        elif DR == 'False':
+            DR = False
+        delete_volumes(volumes, DR, region)
 
 lambda_handler(None, None)
