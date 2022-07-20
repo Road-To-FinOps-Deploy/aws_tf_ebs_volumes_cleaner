@@ -3,6 +3,7 @@ Reports and deletes EBS volumes that are not in use
 and have been idle for more than the specified time
 """
 from datetime import datetime, timedelta, date
+import imp
 import logging
 import os
 import sys
@@ -24,20 +25,26 @@ datelimit = datetime.today() - timedelta(days=1)
 class DateTimeEncoder(json.JSONEncoder):
     # Override the default method
     def default(self, obj):
-        if isinstance(obj, (datetime.date, datetime.datetime)):
+        if isinstance(obj, (date, datetime)):
             return obj.isoformat()
 
 
 def s3_upload(region):
-    try:
-        S3BucketName = os.environ["BUCKET_NAME"]
-        s3 = boto3.client('s3', 
-                            config=Config(s3={'addressing_style': 'path'}))
-        s3.upload_file(f'/tmp/data-{region}.json', S3BucketName, f"ebs/data-{region}.json")
-        print(f"Data in s3 {S3BucketName}")
-    except Exception as e:
-        # Send some context about this error to Lambda Logs
-        logging.warning("%s" % e)
+    #import pdb; pdb.set_trace()
+    fileSize = os.path.getsize(f'/tmp/data-{region}.json')
+    if fileSize == 0:  
+        print(f"No data in file for {region}")
+    else:
+        try:
+            
+            S3BucketName = os.environ["BUCKET_NAME"]
+            s3 = boto3.client('s3', 
+                                config=Config(s3={'addressing_style': 'path'}))
+            s3.upload_file(f'/tmp/data-{region}.json', S3BucketName, f"ebs/data-{region}.json")
+            print(f"Data in s3 {S3BucketName}")
+        except Exception as e:
+            # Send some context about this error to Lambda Logs
+            logging.warning("%s" % e)
 
 
 def get_idle_time(volume_id, filter_date, region):
@@ -109,7 +116,7 @@ def get_filter_date(number_of_days):
 
 def delete_volumes(volumes, DR, region):
     volume_data = {}
-    with open("/tmp/data-{region}.json", "w") as f:
+    with open(f"/tmp/data-{region}.json", "w") as f:
         for volume in volumes:
             Protection = True #always start as everything is protected unless found otherwise
             ReviewDate = False
@@ -143,7 +150,8 @@ def delete_volumes(volumes, DR, region):
                     print(f"{volume.id} has been tag, DryRun ={DR} ")
             except botocore.exceptions.ClientError as e:
                     LOGGER.info(e)
- 
+                    
+            LOGGER.info(Protection) 
             # If the status has changed then we remove but we have set Dry Run as am option    
             if Protection == False:
                 try: 
@@ -151,13 +159,14 @@ def delete_volumes(volumes, DR, region):
                     volume.delete(DryRun=DR)
                     print(f"Deleted {volume.id}, DryRun ={DR}")
                     
-                    volume_data.update({'Region':region, 'ID':volume.id,'State': volume.state, 'Creation Date': volume.create_time.date().isoformat(),'DR':DR, 'Protection':Protection, 'ReviewDate':ReviewDate})
-                    dataJSONData = json.dumps(volume, cls=DateTimeEncoder)
-                    f.write(dataJSONData)
-                    f.write("\n")
-
                 except botocore.exceptions.ClientError as e:
                     LOGGER.info(e)
+
+            #LOGGER.info("S33333333333")        
+            volume_data.update({'Region':region, 'ID':volume.id,'State': volume.state, 'Creation Date': volume.create_time.date().isoformat(),'DR':DR, 'Protection':Protection, 'ReviewDate':date_time})
+            dataJSONData = json.dumps(volume_data, cls=DateTimeEncoder)
+            f.write(dataJSONData)
+            f.write("\n")
 
 def snapshot_volumes(volume, DR, region):
     now = datetime.utcnow()
@@ -204,3 +213,5 @@ def lambda_handler(event, context):
         delete_volumes(volumes, DR, region)
         if os.environ['BUCKET_NAME'] != '':
             s3_upload(region)
+
+lambda_handler(None, None)

@@ -20,7 +20,7 @@ resource "aws_iam_policy" "owner_tag_policy" {
 "Statement": [
       {
       "Sid": "VisualEditor0",
-      "Effect": "Deny",
+      "Effect": "Allow",
         "Action": [
         "ec2:Describe*",
         "ec2:DeleteVolume",
