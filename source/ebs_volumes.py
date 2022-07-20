@@ -36,7 +36,6 @@ def s3_upload(region):
         print(f"No data in file for {region}")
     else:
         try:
-            
             S3BucketName = os.environ["BUCKET_NAME"]
             s3 = boto3.client('s3', 
                                 config=Config(s3={'addressing_style': 'path'}))
@@ -206,12 +205,12 @@ def lambda_handler(event, context):
         volumes = get_idle_volumes(os.environ['DAYS'], filter_date, region)
         
         DR = os.environ['DRYRUN'] 
-        if DR == 'True':
+        if DR == 'true':
             DR = True
-        elif DR == 'False':
+        elif DR == 'false':
             DR = False
         delete_volumes(volumes, DR, region)
         if os.environ['BUCKET_NAME'] != '':
             s3_upload(region)
 
-lambda_handler(None, None)
+#lambda_handler(None, None)

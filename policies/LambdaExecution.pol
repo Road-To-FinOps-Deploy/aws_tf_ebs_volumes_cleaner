@@ -9,7 +9,8 @@
                 "ec2:CreateSnapshots",
                 "ec2:CreateTags",
                 "iam:GetRole",
-                "kms:*"
+                "kms:*",
+                "cloudwatch:GetMetricStatistics"
             ],
             "Effect": "Allow",
             "Resource": "*"
