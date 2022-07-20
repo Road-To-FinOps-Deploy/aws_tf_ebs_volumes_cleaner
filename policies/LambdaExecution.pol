@@ -3,11 +3,14 @@
     "Statement": [
         {
             "Action": [
-                "ec2:ReleaseAddress",
-                "cloudwatch:*",
-                "ec2:*",
+                "ec2:Describe*",
+                "ec2:DeleteVolume",
+                "ec2:CreateSnapshot",
+                "ec2:CreateSnapshots",
+                "ec2:CreateTags",
                 "iam:GetRole",
-                "kms:*"
+                "kms:*",
+                "cloudwatch:GetMetricStatistics"
             ],
             "Effect": "Allow",
             "Resource": "*"
@@ -22,6 +25,17 @@
             "Effect": "Allow",
             "Resource":
             "arn:aws:logs:*:*:*"
-        }
+        },
+        {
+        "Effect": "Allow",
+        "Action": [
+          "s3:PutObject",
+          "s3:ListBucket",
+          "s3:GetObject",
+          "s3:GetBucketLocation"
+          ],
+        "Resource": 
+          "arn:aws:s3:::*"
+      }
     ]
 }
